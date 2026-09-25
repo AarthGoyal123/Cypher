@@ -49,8 +49,9 @@ def main():
     s2_texts = s2_df.apply(build_retrieval_text, axis=1).tolist()
     s3_texts = s3_df.apply(build_retrieval_text, axis=1).tolist()
     
-    s1_ids = s1_df['source1_entity_id'].tolist()
-    target_ids = s2_df['source2_entity_id'].tolist() + s3_df['source3_entity_id'].tolist()
+    s1_ids = s1_df['entity_id'].tolist() if 'entity_id' in s1_df.columns else s1_df.iloc[:, 0].tolist()
+    target_ids = (s2_df['entity_id'].tolist() if 'entity_id' in s2_df.columns else s2_df.iloc[:, 0].tolist()) + \
+                 (s3_df['entity_id'].tolist() if 'entity_id' in s3_df.columns else s3_df.iloc[:, 0].tolist())
     target_texts = s2_texts + s3_texts
     target_ids_set = set(target_ids)
     
