@@ -1,30 +1,41 @@
 import pandas as pd
 import os
 import re
+import unicodedata
 from sklearn.model_selection import train_test_split
 
-def load_data(filepath: str) -> pd.DataFrame:
-    """Load the tsv file correctly."""
-    # Read with explicit \t separator
-    return pd.read_csv(filepath, sep='\t', quoting=3) # quoting=3 is QUOTE_NONE to avoid issue with random quotes
+def remove_accents(text):
+    if not isinstance(text, str):
+        return ""
+    return unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8')
 
-def clean_and_normalize(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Clean business names and addresses.
-    """
-    df_cleaned = df.copy()
+def clean_text(text):
+    if not isinstance(text, str) or pd.isna(text):
+        return ""
+    text = text.lower()
+    text = remove_accents(text)
+    text = re.sub(r'[^a-z0-9\s]', ' ', text)
+    return re.sub(r'\s+', ' ', text).strip()
+
+def process_dataset(filepath: str, output_path: str):
+    print(f"Loading {filepath}...")
+    df = pd.read_csv(filepath, sep='\t', quoting=3, dtype=str)
     
-    # Check if 'business_name' and 'business_address' exist before applying string ops
-    for col in ['business_name', 'business_address']:
-        if col in df_cleaned.columns:
-            # Lowercase, fill NA, and strip
-            df_cleaned[col] = df_cleaned[col].fillna("").astype(str).str.lower().str.strip()
-            # Remove special characters
-            df_cleaned[col] = df_cleaned[col].apply(lambda x: re.sub(r'[^a-z0-9\s]', ' ', x))
-            # Standardize multiple spaces to single space
-            df_cleaned[col] = df_cleaned[col].apply(lambda x: re.sub(r'\s+', ' ', x).strip())
-            
-    return df_cleaned
+    # Apply cleaning and rename to match Member 2's contract
+    if 'business_name' in df.columns:
+        df['business_name_clean'] = df['business_name'].apply(clean_text)
+        df = df.drop(columns=['business_name'])
+        
+    if 'business_address' in df.columns:
+        df['business_address_clean'] = df['business_address'].apply(clean_text)
+        df = df.drop(columns=['business_address'])
+        
+    if 'country' in df.columns:
+        df['country_clean'] = df['country'].fillna("").astype(str).str.lower().str.strip()
+        df = df.drop(columns=['country'])
+        
+    df.to_csv(output_path, sep='\t', index=False)
+    return df
 
 def prepare_data(data_dir: str, output_dir: str):
     """
@@ -32,31 +43,29 @@ def prepare_data(data_dir: str, output_dir: str):
     """
     os.makedirs(output_dir, exist_ok=True)
     
-    print("Loading raw training data...")
-    df_s1 = load_data(os.path.join(data_dir, "train_source1.tsv"))
-    df_s2 = load_data(os.path.join(data_dir, "train_source2.tsv"))
-    df_s3 = load_data(os.path.join(data_dir, "train_source3.tsv"))
-    df_gt = load_data(os.path.join(data_dir, "train_ground_truth.tsv"))
+    df_s1 = process_dataset(os.path.join(data_dir, "train_source1.tsv"), os.path.join(output_dir, "cleaned_train_source1.tsv"))
+    process_dataset(os.path.join(data_dir, "train_source2.tsv"), os.path.join(output_dir, "cleaned_train_source2.tsv"))
+    process_dataset(os.path.join(data_dir, "train_source3.tsv"), os.path.join(output_dir, "cleaned_train_source3.tsv"))
     
-    print("Cleaning data...")
-    df_s1_clean = clean_and_normalize(df_s1)
-    df_s2_clean = clean_and_normalize(df_s2)
-    df_s3_clean = clean_and_normalize(df_s3)
-    
-    # Save cleaned files
-    print("Saving normalized tables...")
-    df_s1_clean.to_csv(os.path.join(output_dir, "cleaned_train_source1.tsv"), sep='\t', index=False)
-    df_s2_clean.to_csv(os.path.join(output_dir, "cleaned_train_source2.tsv"), sep='\t', index=False)
-    df_s3_clean.to_csv(os.path.join(output_dir, "cleaned_train_source3.tsv"), sep='\t', index=False)
-    
-    # Validation split on Source 1 entities (80/20)
     print("Creating validation split...")
-    train_entities, val_entities = train_test_split(df_s1_clean['entity_id'], test_size=0.2, random_state=42)
+    # Using source1_entity_id to match actual ID name
+    if 'source1_entity_id' in df_s1.columns:
+        id_col = 'source1_entity_id'
+    elif 'entity_id' in df_s1.columns:
+        id_col = 'entity_id'
+    else:
+        id_col = df_s1.columns[0]
+        
+    train_entities, val_entities = train_test_split(df_s1[id_col], test_size=0.2, random_state=42)
     
-    # Save splits
     train_entities.to_csv(os.path.join(output_dir, "train_split_s1.csv"), index=False)
     val_entities.to_csv(os.path.join(output_dir, "val_split_s1.csv"), index=False)
-    df_gt.to_csv(os.path.join(output_dir, "train_ground_truth.tsv"), sep='\t', index=False) # copy gt over
+    
+    # Copy GT over
+    gt_path = os.path.join(data_dir, "train_ground_truth.tsv")
+    if os.path.exists(gt_path):
+        df_gt = pd.read_csv(gt_path, sep='\t', quoting=3, dtype=str)
+        df_gt.to_csv(os.path.join(output_dir, "train_ground_truth.tsv"), sep='\t', index=False)
     
     print("Preprocessing completed!")
 
