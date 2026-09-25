@@ -1,0 +1,22 @@
+# Ignore raw datasets and generated data
+dataset/
+student_resource/
+data/
+*.csv
+*.tsv
+
+# Ignore PDFs (unless part of docs)
+*.pdf
+research_notes.md
+BUILD_GUIDE.md
+GyanSetu*.md
+
+# Track the output folder structure but ignore intermediate TSVs (until final push)
+output/*
+!output/.gitkeep
+
+# Python artifacts
+__pycache__/
+*.pyc
+.env
+models/
