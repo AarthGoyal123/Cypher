@@ -46,6 +46,17 @@ pip install sentence-transformers==3.0.1 datasketch==1.6.5 pandas==2.2.2 numpy==
 ```
 *Note: If the runtime provides a compatible GPU-enabled FAISS, use it. Otherwise, `faiss-cpu` is a valid implementation; the bottleneck is retrieval speed, not correctness.*
 
+**Execution Command:**
+Once Member 1 has finished, you must execute the pipeline against their *normalized* outputs:
+```bash
+python /kaggle/working/Cypher/code/business_entity_resolution/src/blocking.py \
+    --mode train \
+    --s1 /kaggle/working/normalized/train_source1.tsv \
+    --s2 /kaggle/working/normalized/train_source2.tsv \
+    --s3 /kaggle/working/normalized/train_source3.tsv \
+    --ground_truth /kaggle/input/amazon-ml-challenge-2026/train_ground_truth.tsv
+```
+
 ---
 
 ## Step 3: Frozen Text Representation (The Contract)

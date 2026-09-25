@@ -23,15 +23,15 @@ def process_dataset(filepath: str, output_path: str):
     
     # Apply cleaning and rename to match Member 2's contract
     if 'business_name' in df.columns:
-        df['business_name_clean'] = df['business_name'].apply(clean_text)
+        df['business_name_norm'] = df['business_name'].apply(clean_text)
         df = df.drop(columns=['business_name'])
         
     if 'business_address' in df.columns:
-        df['business_address_clean'] = df['business_address'].apply(clean_text)
+        df['business_address_norm'] = df['business_address'].apply(clean_text)
         df = df.drop(columns=['business_address'])
         
     if 'country' in df.columns:
-        df['country_clean'] = df['country'].fillna("").astype(str).str.lower().str.strip()
+        df['country_norm'] = df['country'].fillna("").astype(str).str.lower().str.strip()
         df = df.drop(columns=['country'])
         
     df.to_csv(output_path, sep='\t', index=False)
